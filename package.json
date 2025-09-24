@@ -1,0 +1,13 @@
+{
+  "name": "zipline-inventory",
+  "version": "1.0.0",
+  "description": "Zipline inventory and order processing system",
+  "main": "index.js",
+  "author": "Luc",
+  "license": "MIT",
+  "private": false,
+  "devDependencies": {
+    "ts-node": "10.9.2",
+    "typescript": "5.9.2"
+  }
+}

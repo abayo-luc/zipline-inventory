@@ -1,0 +1,16 @@
+{
+  "compilerOptions": {
+    "resolveJsonModule": true, // allow importing JSON files
+    "moduleResolution": "node",
+    "target": "ES2020",                     
+    "module": "commonjs",                  
+    "rootDir": "src",                      
+    "outDir": "dist",                      
+    "strict": true, // enforce strict type-checking options                        
+    "esModuleInterop": true, // make import smoother (i.e import fs from 'fs' or import * as fs from 'fs')               
+    "forceConsistentCasingInFileNames": true, // ensure consistent file naming
+    "skipLibCheck": true // skip type checking of declaration files
+  },
+  "include": ["src"],
+  "exclude": ["node_modules", "dist", "**/*.test.ts", "**/*.spec.ts"] 
+}
