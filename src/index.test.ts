@@ -177,6 +177,31 @@ describe("Inventory System", () => {
           { product_id: products[5].product_id, quantity: 2 }, // not in stock at at all
         ],
       };
+      inventorySystem.process_order(order);
+
+      expect(inventorySystem.pendingOrders.size).toBe(1);
+      expect(inventorySystem.pendingOrders.get(order.order_id)).toEqual([
+        { product_id: 1, quantity: 10 },
+        { product_id: 5, quantity: 2 },
+      ]);
+      // WHEN: we restock items that are pending
+      const restockPayload = [
+        { product_id: products[1].product_id, quantity: 6 }, // not enough to fullfil the whole pending order
+        { product_id: products[5].product_id, quantity: 5 }, // enough to fullfil the order
+      ];
+      inventorySystem.process_restock(restockPayload);
+
+      // THEN: the pending order should be updated accordingly
+      expect(inventorySystem.pendingOrders.size).toBe(1);
+      expect(inventorySystem.pendingOrders.get(order.order_id)).toEqual([
+        { product_id: 1, quantity: 4 },
+      ]);
+
+      // Restock again to fullfil the rest of pending order
+      inventorySystem.process_restock([
+        { product_id: products[1].product_id, quantity: 10 },
+      ]);
+      expect(inventorySystem.pendingOrders.size).toBe(0);
     });
   });
 });

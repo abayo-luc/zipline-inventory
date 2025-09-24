@@ -74,8 +74,12 @@ export class InventorySystem {
         pendingOrderItems.push(orderItem);
       }
     });
+
     if (pendingOrderItems.length > 0) {
       this.pendingOrders.set(order.order_id, pendingOrderItems);
+    } else if (this.pendingOrders.has(order.order_id)) {
+      // if there are no pending items, remove the order from pending orders
+      this.pendingOrders.delete(order.order_id);
     }
 
     const shipments = this.getShipmentBatches(availableItems);
