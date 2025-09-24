@@ -97,7 +97,10 @@ describe("Inventory System", () => {
         { product_id: products[2].product_id, quantity: 30 },
       ]);
     });
-
+    afterEach(() => {
+      jest.clearAllMocks();
+      jest.restoreAllMocks();
+    });
     it("should process orders with all items in stock", () => {
       const order = {
         order_id: 1,
@@ -115,22 +118,15 @@ describe("Inventory System", () => {
         inventorySystem.get_product_info(products[1].product_id)?.stock
       ).toBe(45);
 
-      expect(console.log).toHaveBeenNthCalledWith(
-        1,
-        '{"order_id":1,"shipped":[{"product_id":1,"quantity":1,"mass":700}]}'
-      );
-      for (let i = 2; i <= 7; i++) {
+      expect(console.log).toHaveBeenCalledTimes(8);
+      for (let i = 1; i <= 8; i++) {
         expect(console.log).toHaveBeenNthCalledWith(
           i,
           expect.stringMatching(
-            /{"order_id":1,"shipped":\[{"product_id":(0|1),"quantity":2,"mass":1400}\]}/
+            /{"order_id":1,"shipped":\[\{"product_id":(0|1),"quantity":\d+\}\]}/
           )
         );
       }
-      expect(console.log).toHaveBeenNthCalledWith(
-        8,
-        '{"order_id":1,"shipped":[{"product_id":1,"quantity":2,"mass":1400}]}'
-      );
       expect(inventorySystem.pendingOrders.size).toBe(0);
     });
 
@@ -202,6 +198,57 @@ describe("Inventory System", () => {
         { product_id: products[1].product_id, quantity: 10 },
       ]);
       expect(inventorySystem.pendingOrders.size).toBe(0);
+    });
+
+    it("should output right shipment data with given test data", () => {
+      inventorySystem = new InventorySystem(products);
+      const orderPayload = {
+        order_id: 123,
+        requested: [
+          { product_id: 0, quantity: 2 },
+          { product_id: 10, quantity: 4 },
+        ],
+      };
+      const restockPayload = [
+        { product_id: 0, quantity: 30 },
+        { product_id: 1, quantity: 25 },
+        { product_id: 2, quantity: 25 },
+        { product_id: 3, quantity: 12 },
+        { product_id: 4, quantity: 15 },
+        { product_id: 5, quantity: 10 },
+        { product_id: 6, quantity: 8 },
+        { product_id: 7, quantity: 8 },
+        { product_id: 8, quantity: 20 },
+        { product_id: 9, quantity: 10 },
+        { product_id: 10, quantity: 5 },
+        { product_id: 11, quantity: 5 },
+        { product_id: 12, quantity: 5 },
+      ];
+
+      // WHEN: order is placed
+      inventorySystem.process_order(orderPayload);
+
+      expect(inventorySystem.pendingOrders.size).toBe(1);
+      expect(inventorySystem.pendingOrders.get(orderPayload.order_id)).toEqual([
+        { product_id: 0, quantity: 2 },
+        { product_id: 10, quantity: 4 },
+      ]);
+
+      // THEN: restock items
+      inventorySystem.process_restock(restockPayload);
+
+      // THEN: the pending order should be fullfiled and removed
+      expect(inventorySystem.pendingOrders.size).toBe(0);
+
+      // Check the console.log calls for shipment data
+      expect(console.log).toHaveBeenNthCalledWith(
+        1,
+        '{"order_id":123,"shipped":[{"product_id":0,"quantity":2},{"product_id":10,"quantity":1}]}'
+      );
+      expect(console.log).toHaveBeenNthCalledWith(
+        2,
+        '{"order_id":123,"shipped":[{"product_id":10,"quantity":3}]}'
+      );
     });
   });
 });

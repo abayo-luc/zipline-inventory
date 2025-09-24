@@ -84,8 +84,14 @@ export class InventorySystem {
 
     const shipments = this.getShipmentBatches(availableItems);
     // for each shipment, call ship_package
-    shipments.forEach((shipment) => {
-      this.ship_package(order.order_id, shipment);
+    shipments.forEach((shipmentItems) => {
+      this.ship_package(
+        order.order_id,
+        shipmentItems.map((shipment) => ({
+          product_id: shipment.product_id,
+          quantity: shipment.quantity,
+        }))
+      );
     });
   }
 
@@ -112,7 +118,7 @@ export class InventorySystem {
 
   private getShipmentBatches(items: OrderItem[]) {
     // bundle packages into batches that do not exceed maxPackageSize
-    const shippingBatches: PackageItem[][] = [];
+    const committedBatches: PackageItem[][] = [];
 
     // temporary hold the current batch of packages
     let currentBatch: PackageItem[] = [];
@@ -122,29 +128,56 @@ export class InventorySystem {
     const orderPackages = items
       .map((orderItem) => this.splitOrderItemsIntoPackages(orderItem))
       .flat()
-      .sort((a, b) => a.mass - b.mass);
+      .sort((a, b) => b.unit_mass - a.unit_mass);
 
     // Group the packages into a single batch which don't exceed the maximum package size
     for (const pkg of orderPackages) {
-      // If current batch plus the new mass is under max package,
-      // pus the element to the batch and increase the mass
-      // Otherwise save the current batch, and start a new one
-      if (pkg.mass + currentBatchMass <= this.maxPackageSize) {
+      if (
+        currentBatchMass < this.maxPackageSize &&
+        currentBatchMass + pkg.total_mass <= this.maxPackageSize
+      ) {
         currentBatch.push(pkg);
-        currentBatchMass += pkg.mass;
+        currentBatchMass += pkg.total_mass;
       } else {
-        shippingBatches.push(currentBatch);
-        currentBatch = [pkg];
-        currentBatchMass = pkg.mass;
+        // Get the remaining size in the current batch
+        const remainingMassInCurrentBatch =
+          this.maxPackageSize - currentBatchMass;
+        // Compute the quantity of current package that can fit in the current batch
+        const quantityFit = Math.min(
+          pkg.quantity,
+          Math.floor(remainingMassInCurrentBatch / pkg.unit_mass)
+        );
+
+        // Fill in as much quantity in the current batch, before committing
+        if (quantityFit > 0) {
+          currentBatch.push({
+            ...pkg,
+            quantity: quantityFit,
+            total_mass: pkg.unit_mass * quantityFit,
+          });
+        }
+        // commit the current batch before reset
+        committedBatches.push(currentBatch);
+
+        // push the remaining package in the current batch
+        const remainingPackageQuantity = pkg.quantity - quantityFit;
+        currentBatch = [
+          {
+            ...pkg,
+            quantity: pkg.quantity - quantityFit,
+            total_mass: remainingPackageQuantity * pkg.unit_mass,
+          },
+        ];
+        currentBatchMass = remainingPackageQuantity * pkg.unit_mass;
       }
     }
 
     // For last iteration, push the remaining batch if it has any packages
     if (currentBatch.length > 0) {
-      shippingBatches.push(currentBatch);
+      committedBatches.push(currentBatch);
     }
 
-    return shippingBatches;
+    return committedBatches;
   }
 
   private splitOrderItemsIntoPackages(item: OrderItem): PackageItem[] {
@@ -167,7 +200,8 @@ export class InventorySystem {
       packages.push({
         product_id: item.product_id,
         quantity: quantityForThisPackage,
-        mass: product.mass_g * quantityForThisPackage,
+        unit_mass: product.mass_g,
+        total_mass: quantityForThisPackage * product.mass_g,
       });
       remainingQuantity -= quantityForThisPackage;
     }

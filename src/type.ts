@@ -24,7 +24,8 @@ export interface StockItem {
 export interface PackageItem {
   product_id: number;
   quantity: number;
-  mass: number;
+  unit_mass: number;
+  total_mass: number;
 }
 
 // for ship_package
