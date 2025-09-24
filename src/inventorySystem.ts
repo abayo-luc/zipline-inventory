@@ -38,9 +38,12 @@ export class InventorySystem {
     const restockedProductIds: number[] = [];
     payload.forEach((item) => {
       // only restock if we already have that product in our catalog
-      if (this.products.has(item.product_id)) {
-        const previousStock = this.stock.get(item.product_id) ?? 0;
-        this.stock.set(item.product_id, previousStock + item.quantity); // increase the stock from what we already had
+      const previousStock = this.stock.get(item.product_id);
+      if (this.products.has(item.product_id) && previousStock !== undefined) {
+        this.stock.set(
+          item.product_id,
+          previousStock + Math.max(item.quantity, 0)
+        ); // increase the stock from what we already had
         restockedProductIds.push(item.product_id);
       }
     });
@@ -56,7 +59,7 @@ export class InventorySystem {
     const availableItems: OrderItem[] = [];
     const pendingOrderItems: Order["requested"] = [];
     order.requested.forEach((orderItem) => {
-      const currentStock = this.stock.get(orderItem.product_id) ?? 0;
+      const currentStock = this.stock.get(orderItem.product_id) || 0;
       if (orderItem.quantity <= currentStock) {
         availableItems.push(orderItem);
         this.stock.set(orderItem.product_id, currentStock - orderItem.quantity);
